@@ -30,9 +30,9 @@ def extract_features(df):
     #load the data
     X= df[cols].values
     if 0 in df['label'].values:
-        y = 0
-    else:
         y = 1
+    else:
+        y = 0
     return(X, y)
 
 def print_evaluation(y_sample, labels):
@@ -47,8 +47,6 @@ def print_evaluation(y_sample, labels):
 def evaluate(X_train_res, y_train, X_test_res, y_test):
     # evaluate training
     print("Training Results:")
-    # y_trai = np.asarray(y_train)
-
     y_pred = model.predict(X_train_res)
     pred_label = []
     for elm in y_pred:
@@ -67,7 +65,6 @@ def evaluate(X_train_res, y_train, X_test_res, y_test):
             pred_label.append(1)
         else:
             pred_label.append(0)
-
     print_evaluation(pred_label, y_test)
 
 
@@ -90,33 +87,20 @@ def create_dataset(files):
     return (X, y)
 
 
-callback_arr = [callbacks.EarlyStopping(monitor='binary_accuracy',
-                                        verbose=1,
-                                        mode='min',
-                                        patience=3)]
-model = Sequential()
-model.add(LSTM(100, return_sequences = True, input_shape = (256, len(cols))))
-model.add(Dropout(0.2))
-model.add(LSTM(200, return_sequences = True))
-model.add(Dropout(0.2))
-model.add(LSTM(25))
-model.add(Dropout(0.2))
-model.add(Dense(1, activation='sigmoid'))
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['binary_accuracy'])
-
 #get all the prepared csv files
 import glob
 filepath = "./eeg-data/train/*.csv"
 files = glob.glob(filepath)
 print(files)
 
-
-X,y = create_dataset(files)
-
+X, y = create_dataset(files)
 
 #split into training and testing
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2,random_state=42)
+    X, y, test_size=0.5, random_state=42)
+
+# X_train = TimeSeriesScalerMinMax().fit_transform(X_train)
+# X_test = TimeSeriesScalerMinMax().fit_transform(X_test)
 
 #reshape numpy arrays
 X_train_res = np.asarray(X_train).reshape(len(X_train), 256, len(cols))
@@ -124,7 +108,34 @@ y_train = np.asarray(y_train)
 X_test_res = np.asarray(X_test).reshape(len(X_test), 256, len(cols))
 y_test = np.asarray(y_test)
 
+callback_arr = [callbacks.EarlyStopping(monitor='binary_accuracy',
+                                        verbose=1,
+                                        mode='min',
+                                        patience=9)]
 
-model.fit(X_train_res, y_train, validation_data=(X_test_res, y_test), epochs=10, callbacks=callback_arr)
+model = Sequential()
+model.add(Dense(units=10, return_sequences = True, activation='relu', batch_size=1, kernel_initializer='normal', input_shape = (256, len(cols))))
+model.add(Dense(1, activation='sigmoid', kernel_initializer='normal'))
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['binary_accuracy'])
+
+
+# model = Sequential()
+# model.add(LSTM(50, return_sequences = True, input_shape = (256, len(cols))))
+# model.add(Dropout(0.2))
+# model.add(LSTM(50, return_sequences = True ))
+# model.add(Dropout(0.2))
+# model.add(LSTM(50, return_sequences = True ))
+# model.add(Dropout(0.2))
+# model.add(LSTM(50))
+# model.add(Dropout(0.1))
+# model.add(Dense(1, activation='sigmoid'))
+# model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['binary_accuracy'])
+
+
+history = model.fit(X_train_res, y_train, validation_data=(X_test_res, y_test), epochs=15, callbacks=callback_arr)
+for key in history.history:
+    plt.plot(history.history[key], label=key)
+plt.legend()
+plt.show()
 
 evaluate(X_train_res, y_train, X_test_res, y_test)
