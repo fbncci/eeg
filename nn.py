@@ -10,7 +10,6 @@ from tslearn.preprocessing import TimeSeriesScalerMinMax, TimeSeriesScalerMeanVa
     TimeSeriesResampler
 from tslearn.clustering import TimeSeriesKMeans
 from sklearn.preprocessing import MinMaxScaler
-from tslearn.svm import TimeSeriesSVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, recall_score, accuracy_score, classification_report, precision_score, confusion_matrix
 import numpy as np
@@ -30,12 +29,11 @@ def splitDataFrameIntoSmaller(df, chunkSize = 256):
 def extract_features(df):
     #load the data
     X= df[cols].values
-    if 0 in df['label'].values and 1 in df['label'].values:
-        return([],[])
-    elif 1 in df['label'].values and 0 not in df['label'].values:
-        return(X, 1)
+    if 0 in df['label'].values:
+        y = 1
     else:
-        return(X, 0)
+        y = 0
+    return(X, y)
 
 def print_evaluation(y_sample, labels):
     print(str("Accuracy: {}").format(accuracy_score(y_sample, labels)))
@@ -73,7 +71,7 @@ def evaluate(X_train_res, y_train, X_test_res, y_test):
 def create_dataset(files):
     X = []
     y = []
-    counter  = 0
+
     for file in files:
         df_raw = pd.read_csv(file)
         df_arr = splitDataFrameIntoSmaller(df_raw, chunkSize=256)
@@ -92,66 +90,68 @@ def create_dataset(files):
 #get all the prepared csv files
 import glob
 filepath = "./eeg-data/train/*.csv"
-files = glob.glob(filepath)[:2]
+files = glob.glob(filepath)
+print(files)
 
 X, y = create_dataset(files)
 
-np.save("X.npy", X)
-np.save("y.npy", y)
-
 #split into training and testing
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42)
-#
-# # X_train = TimeSeriesScalerMinMax().fit_transform(X_train)
-# # X_test = TimeSeriesScalerMinMax().fit_transform(X_test)
-#
+    X, y, test_size=0.5, random_state=42)
+
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+pca = PCA(n_components=24, whiten=True, svd_solver='arpack', random_state=1)
 
 
+for elm in X_train:
+    scaler.partial_fit(elm)
+    scaler.transform(elm)
 
-##LSTM
-#reshape numpy arrays
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+X_train = pca.fit_transform(X_train)
+X_test = pca.transform(X_test)
+
+
+# #reshape numpy arrays
 # X_train_res = np.asarray(X_train).reshape(len(X_train), 256, len(cols))
 # y_train = np.asarray(y_train)
 # X_test_res = np.asarray(X_test).reshape(len(X_test), 256, len(cols))
 # y_test = np.asarray(y_test)
-#
-# callback_arr = [callbacks.EarlyStopping(monitor='binary_accuracy',
-#                                         verbose=1,
-#                                         mode='min',
-#                                         patience=9)]
+
+callback_arr = [callbacks.EarlyStopping(monitor='binary_accuracy',
+                                        verbose=1,
+                                        mode='min',
+                                        patience=9)]
+
+
+
+model = Sequential()
+model.add(Dense(units=10, return_sequences = True, activation='relu', batch_size=1, kernel_initializer='normal', input_shape = (256, len(cols))))
+model.add(Dense(1, activation='sigmoid', kernel_initializer='normal'))
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['binary_accuracy'])
+
+
 # model = Sequential()
-# model.add(LSTM(100, return_sequences = True, input_shape = (256, len(cols))))
-# model.add(Dropout(0.5))
+# model.add(LSTM(50, return_sequences = True, input_shape = (256, len(cols))))
+# model.add(Dropout(0.2))
+# model.add(LSTM(50, return_sequences = True ))
+# model.add(Dropout(0.2))
+# model.add(LSTM(50, return_sequences = True ))
+# model.add(Dropout(0.2))
 # model.add(LSTM(50))
-# model.add(Dropout(0.4))
+# model.add(Dropout(0.1))
 # model.add(Dense(1, activation='sigmoid'))
 # model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['binary_accuracy'])
-#
-#
-# history = model.fit(X_train_res, y_train, validation_data=(X_test_res, y_test), epochs=15, callbacks=callback_arr)
-# for key in history.history:
-#     plt.plot(history.history[key], label=key)
-# plt.legend()
-# plt.show()
-#
-# evaluate(X_train_res, y_train, X_test_res, y_test)
 
-model = TimeSeriesSVC(kernel="gak", gamma=.1)
-model.fit(X_train, y_train)
-print("Correct classification rate:", model.score(X_test, y_test))
 
-evaluate(X_train, y_train, X_test, y_test)
-
-n_classes = len(set(y_train))
-
-plt.figure()
-support_vectors = model.support_vectors_time_series_()
-for i, cl in enumerate(set(y_train)):
-    plt.subplot(n_classes, 1, i + 1)
-    plt.title("Support vectors for class %d" % cl)
-    for ts in support_vectors[i]:
-        plt.plot(ts.ravel())
-
-plt.tight_layout()
+history = model.fit(X_train_res, y_train, validation_data=(X_test_res, y_test), epochs=15, callbacks=callback_arr)
+for key in history.history:
+    plt.plot(history.history[key], label=key)
+plt.legend()
 plt.show()
+
+evaluate(X_train_res, y_train, X_test_res, y_test)
