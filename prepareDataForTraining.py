@@ -46,7 +46,7 @@ def create_dataset(files):
 import glob
 filepath = "./eeg-data/train/*.csv"
 files = glob.glob(filepath)
-N = len(files)/2
+N = int(len(files)/2)
 train_files = files[:N]
 
 X_train, y_train = create_dataset(train_files)
