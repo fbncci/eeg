@@ -12,9 +12,18 @@ y_train = np.load("y_train.npy")
 X_test = np.load("X_test.npy")
 y_test = np.load("y_test.npy")
 
+
+def class_balance(y):
+    return sum(y)/len(y)
+
+print(class_balance(y_train))
+print(class_balance(y_test))
+
 clf = TimeSeriesSVC(kernel="gak", gamma=.1)
 clf.fit(X_train, y_train)
 print("Correct classification rate:", clf.score(X_test, y_test))
+
+
 
 n_classes = len(set(y_train))
 
