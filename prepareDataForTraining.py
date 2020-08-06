@@ -44,9 +44,14 @@ def create_dataset(files):
 
 #get all the prepared csv files
 import glob
+import random
+random.seed(0)
 filepath = "./eeg-data/train/*.csv"
 files = glob.glob(filepath)
+random.shuffle(files)
 N = int(len(files)/2)
+print(len(files))
+print(N)
 train_files = files[:N]
 
 X_train, y_train = create_dataset(train_files)

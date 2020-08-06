@@ -146,7 +146,7 @@ evaluate(X_train, y_train, X_test, y_test)
 n_classes = len(set(y_train))
 
 plt.figure()
-support_vectors = model.support_vectors_time_series_()
+support_vectors = model.support_vectors_time_series_
 for i, cl in enumerate(set(y_train)):
     plt.subplot(n_classes, 1, i + 1)
     plt.title("Support vectors for class %d" % cl)
