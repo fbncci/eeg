@@ -1,10 +1,8 @@
 from tslearn.svm import TimeSeriesSVC
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, recall_score, accuracy_score, classification_report, precision_score, confusion_matrix
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-
+import pickle
 
 X_train = np.load("X_train.npy")
 y_train = np.load("y_train.npy")
@@ -45,17 +43,19 @@ clf = TimeSeriesSVC(kernel="gak", gamma=.1)
 clf.fit(X_train, y_train)
 
 print("model trained")
+
+# save the model to disk
+filename = 'finalized_model.sav'
+pickle.dump(clf, open(filename, 'wb'))
+
+#evaluate model
 y_pred = clf.predict(X_test)
-
-
 print(str("Accuracy: {}").format(accuracy_score(y_pred, y_test)))
 print(str("Precision: {}").format(precision_score(y_pred, y_test)))
 print(str("Recall: {}").format(recall_score(y_pred, y_test)))
 print(str("F1-Score: {}").format(f1_score(y_pred, y_test)))
 print(confusion_matrix(y_pred, y_test))
 
-
-print("Correct classification rate:", clf.score(X_test, y_test))
 
 # n_classes = len(set(y_train))
 #
